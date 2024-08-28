@@ -14,31 +14,26 @@ const App = () => {
   const [openAttendanceModal, setOpenAttendanceModal] = useState(false);
   const [openMarksModal, setOpenMarksModal] = useState(false);
   const [openUpdateModal, setOpenUpdateModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");  // Search state
 
   useEffect(() => {
     loadStudents();
-  }, []);
-
-  useEffect(() => {
-    const fetchStudentById = async (studentId) => {
-      try {
-        const response = await axios.get(`http://localhost:5000/api/v1/students/${studentId}`);
-        setSelectedStudent(response.data);
-      } catch (error) {
-        console.error('Error fetching student details:', error);
-      }
-    };
-
-    if (openUpdateModal && selectedStudent) {
-      fetchStudentById(selectedStudent._id);
-    }
-  }, [openUpdateModal, selectedStudent]);
+  }, [searchQuery]); 
 
   const loadStudents = () => {
     axios
       .get("http://localhost:5000/api/v1/students")
-      .then((response) => setStudents(response.data))
+      .then((response) => {
+        const filteredStudents = response.data.filter(student =>
+          student.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+        setStudents(filteredStudents);
+      })
       .catch((error) => console.error("Error fetching student data:", error));
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
   };
 
   const handleOpenAddStudentModal = () => {
@@ -71,32 +66,16 @@ const App = () => {
   const handleDownloadReport = async (studentId) => {
     console.log("Student id  is coming", studentId)
     try {
-      // Perform GET request to fetch the PDF report
       const response = await axios.get(`http://localhost:5000/api/v1/student/report/${studentId}`, {
-        responseType: 'blob' // Set response type to 'blob' to handle binary data
+        responseType: 'blob' 
       });
-  
-      // Check if the request was successful
       if (response.status === 200) {
-        // Create a Blob object from the PDF data
         const blob = new Blob([response.data], { type: 'application/pdf' });
-  
-        // Create a link element
         const link = document.createElement('a');
-  
-        // Set the URL of the link to the Blob URL
         link.href = window.URL.createObjectURL(blob);
-  
-        // Set the download attribute with the desired file name
         link.download = `Student_Report_${studentId}.pdf`;
-  
-        // Append the link to the document body (required for Firefox)
         document.body.appendChild(link);
-  
-        // Programmatically click the link to trigger the download
         link.click();
-  
-        // Remove the link from the document body
         document.body.removeChild(link);
       } else {
         throw new Error('Failed to download report');
@@ -131,26 +110,21 @@ const App = () => {
     }
   };
 
-  const handleMarksSave = (data) => {
-    if (selectedStudent) {
-      axios
-        .post("http://localhost:5000/api/v1/marks", {
-          studentId: selectedStudent._id,
-          ...data,
-        })
-        .then(() => {
-          loadStudents();
-          setOpenMarksModal(false);
-        })
-        .catch((error) => console.error("Error recording marks:", error));
-    }
-  };
-
   return (
     <div className="container mx-auto p-4">
       <h2 className="text-center text-2xl font-bold my-4">
         Student Management System
       </h2>
+
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search by student name..."
+          value={searchQuery}
+          onChange={handleSearchChange}
+          className="p-2 border border-gray-300 rounded"
+        />
+      </div>
 
       <Button variant="contained" onClick={handleOpenAddStudentModal}>
         Add Student
